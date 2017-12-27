@@ -3,7 +3,7 @@
 """
 Code to load an expert policy and generate roll-out data for behavioral cloning.
 Example usage:
-    python run_expert.py experts/RoboschoolHumanoid-v1.py --render \
+    python dagger.py experts/RoboschoolHumanoid-v1.py --render \
             --num_rollouts 20
 """
 
@@ -29,7 +29,6 @@ def get_initial_data(env, policy, max_steps, args):
     steps = 0
     while not done:
       action = policy.act(obs)
-      #print("POLICY ACTION!!!", action) ###
       observations.append(obs)
       actions.append(action)
       obs, r, done, _ = env.step(action)
@@ -67,11 +66,6 @@ def main():
   max_steps = args.max_timesteps or env.spec.timestep_limit
   expert_data = get_initial_data(env, policy, max_steps, args)
 
-  ################# NEW CODE ########################
-
-  ## DEBUG ##
-  #print('observations shape:', expert_data['observations'].shape)
-  #print('actions shape:', expert_data['actions'].shape)
     
   ## behavioral cloning ##
   total_data_size = len(expert_data['observations'])
@@ -98,6 +92,7 @@ def main():
   num_labels = training_y.shape[1]
 
   ##################### Hyperparameters ####################################
+  #TODO: make these hyper parameters a map or something. Don't make it a bunch of comments.
   ### ANT ### best is ~50% validation
   batch_size = 200
   learning_rate = 0.01
@@ -168,11 +163,11 @@ def main():
   with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
 
-    ### TRAINING ###
+    ### Training ###
     print("Starting training...")
     for i in range(args.num_rollouts):
       print('iter', i)
-      ### GENERATE DATA VIA DAGGER ###
+      ### Generate data via DAgger ###
       if i != 0:
         obs = env.reset()
         done = False
@@ -180,12 +175,6 @@ def main():
         while not done:
           expert_action = policy.act(obs)
           policy_action = session.run(logits, feed_dict = {tf_train_dataset : obs[None, : ]})[0]
-          #print("POLICY ACTION!!!", action) ###
-          #print("TRAINING_X SHAPE:", training_x.shape)
-          #print("OBS SHAPE:", obs.shape)
-          #print("OBS TRANSFORM", obs.reshape(1, obs.shape[0]).shape)
-          #print("TRAINING_Y SHAPE:", training_y.shape)
-          #print("ACTION SHAPE:", expert_action.shape)
           training_x = np.append(training_x, obs.reshape(1, obs.shape[0]), axis=0)
           training_y = np.append(training_y, expert_action.reshape(1, expert_action.shape[0]), axis=0)
           obs, r, done, _ = env.step(policy_action)
@@ -195,7 +184,7 @@ def main():
           if steps >= max_steps:
             break
 
-      ### GRADIENT DESCENT ###
+      ### Gradient descent ###
       for step in range(num_steps):
         # Pick an offset within the training data, which has been randomized.
         offset = (step * batch_size) % (training_y.shape[0] - batch_size)
@@ -224,7 +213,6 @@ def main():
       steps = 0
       while not done:
         action = session.run(logits, feed_dict = {tf_train_dataset : obs[None, : ]})[0]
-        #print("BEHAVIORAL CLONING ACTION!!!", action) ###
         obs, r, done, _ = env.step(action)
         totalr += r
         steps += 1
@@ -235,9 +223,9 @@ def main():
         if steps >= max_steps:
           break
       returns.append(totalr)
-    print('behavioral cloning returns', returns)
-    print('behavioral cloning mean return', np.mean(returns))
-    print('behavioral cloning std of return', np.std(returns))
+    print('dagger returns', returns)
+    print('dagger mean return', np.mean(returns))
+    print('dagger std of return', np.std(returns))
   print("DONE!!!")
 
 if __name__ == '__main__':

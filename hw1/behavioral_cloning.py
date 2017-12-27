@@ -3,7 +3,7 @@
 """
 Code to load an expert policy and generate roll-out data for behavioral cloning.
 Example usage:
-    python run_expert.py experts/RoboschoolHumanoid-v1.py --render \
+    python3 behavioral_cloning.py experts/RoboschoolHumanoid-v1.py --render \
             --num_rollouts 20
 """
 
@@ -29,7 +29,6 @@ def get_initial_data(env, policy, max_steps, args):
     steps = 0
     while not done:
       action = policy.act(obs)
-      #print("POLICY ACTION!!!", action) ###
       observations.append(obs)
       actions.append(action)
       obs, r, done, _ = env.step(action)
@@ -67,12 +66,6 @@ def main():
   max_steps = args.max_timesteps or env.spec.timestep_limit
   expert_data = get_initial_data(env, policy, max_steps, args)
 
-  ################# NEW CODE ########################
-
-  ## DEBUG ##
-  #print('observations shape:', expert_data['observations'].shape)
-  #print('actions shape:', expert_data['actions'].shape)
-    
   ## behavioral cloning ##
   total_data_size = len(expert_data['observations'])
   training_size = int(total_data_size * 0.7)
@@ -98,6 +91,7 @@ def main():
   num_labels = training_y.shape[1]
 
   ##################### Hyperparameters ####################################
+  # TODO: make the hyperparameters a map or something to clean it up. Don't make it a bunch of comments
   ### ANT ### best is ~50% validation
   batch_size = 200
   learning_rate = 0.01
@@ -182,6 +176,7 @@ def main():
       feed_dict = {tf_train_dataset : batch_data, tf_train_labels : batch_labels}
       _, training_loss, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
       if (step % 1000 == 0):
+        # TODO: add flag to turn on and off debugging prints
         print("Minibatch loss at step %d: %f" % (step, training_loss))
         print("Minibatch accuracy: %.1f%%" % accuracy(predictions, batch_labels))
         print("Validation accuracy: %.1f%%" % accuracy(valid_prediction.eval(), validation_y))
@@ -198,7 +193,6 @@ def main():
       steps = 0
       while not done:
         action = session.run(logits, feed_dict = {tf_train_dataset : obs[None, : ]})[0]
-        #print("BEHAVIORAL CLONING ACTION!!!", action) ###
         obs, r, done, _ = env.step(action)
         totalr += r
         steps += 1
