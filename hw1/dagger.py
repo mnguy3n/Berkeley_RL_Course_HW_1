@@ -14,6 +14,63 @@ import numpy as np
 import gym
 import importlib
 
+HYPER_PARAMETER_DICT = {
+  'Ant': {
+    'batch_size': 200,
+    'learning_rate': 0.01,
+    'num_relus': 30,
+    'beta_A': 0.0005,
+    'beta_B': 0.0005,
+    'beta_output': 0.0005,
+    'num_steps': 50001
+  },
+  'HalfCheetah': {
+    'batch_size': 200,
+    'learning_rate': 0.005,
+    'num_relus': 30,
+    'beta_A': 0.0005,
+    'beta_B': 0.0005,
+    'beta_output': 0.0005,
+    'num_steps': 50001
+  },
+  'Hopper': {
+    'batch_size': 200,
+    'learning_rate': 0.01,
+    'num_relus': 30,
+    'beta_A': 0.00001,
+    'beta_B': 0.00001,
+    'beta_output': 0.0001,
+    'num_steps': 50001
+  },
+  'Humanoid': {
+    'batch_size': 200,
+    'learning_rate': 0.01,
+    'num_relus': 30,
+    'beta_A': 0.0005,
+    'beta_B': 0.0005,
+    'beta_output': 0.0005,
+    'num_steps': 50001
+  },
+  'Reacher': {
+    'batch_size': 200,
+    'learning_rate': 0.001,
+    'num_relus': 30,
+    'beta_A': 0.001,
+    'beta_B': 0.001,
+    'beta_output': 0.001,
+    'num_steps': 50001
+  },
+  'Walkder2d': {
+    'batch_size': 200,
+    'learning_rate': 0.001,
+    'num_relus': 30,
+    'beta_A': 0.001,
+    'beta_B': 0.001,
+    'beta_output': 0.001,
+    'num_steps': 50001 
+  }
+}
+
 def accuracy(predictions, labels):
   return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
 
@@ -66,7 +123,6 @@ def main():
   env, policy = policy_module.get_env_and_policy()
   max_steps = args.max_timesteps or env.spec.timestep_limit
   expert_data = get_initial_data(env, policy, max_steps, args)
-
     
   ## behavioral cloning ##
   total_data_size = len(expert_data['observations'])
@@ -92,43 +148,16 @@ def main():
   num_features = training_x.shape[1]
   num_labels = training_y.shape[1]
 
-  ##################### Hyperparameters ####################################
-  #TODO: make these hyper parameters a map or something. Don't make it a bunch of comments.
-  ### ANT ### best is ~50% validation
-  batch_size = 200
-  learning_rate = 0.01
-  num_relus = 30
-  beta_A = 0.0005
-  beta_B = 0.0005
-  beta_output = 0.0005
-  num_steps = 50001
-
-  ### HOPPER ### best is ~90% validation
-  #batch_size = 200
-  #learning_rate = 0.01
-  #num_relus = 30
-  #beta_A = 0.00001
-  #beta_B = 0.00001
-  #beta_output = 0.00001
-  #num_steps = 50001
-	
-  ### CHEETAH ### best is ~60% validation
-  #batch_size = 200
-  #learning_rate = 0.005
-  #num_relus = 30
-  #beta_A = 0.0005
-  #beta_B = 0.0005
-  #beta_output = 0.0005
-  #num_steps = 50001
-
-  ### WALKER ### best is ~60, but a lot of fluctuation
-  #batch_size = 200
-  #learning_rate = 0.001
-  #num_relus = 30
-  #beta_A = 0.001
-  #beta_B = 0.001
-  #beta_output = 0.001
-  #num_steps = 50001
+  # Choosing hyper parameters
+  prefix = 'experts/Roboschool'
+  policy_type = args.expert_policy_file[len(prefix) : args.expert_policy_file.rfind('-v1')]
+  batch_size = HYPER_PARAMETER_DICT[policy_type]['batch_size']
+  learning_rate = HYPER_PARAMETER_DICT[policy_type]['learning_rate']
+  num_relus = HYPER_PARAMETER_DICT[policy_type]['num_relus']
+  beta_A = HYPER_PARAMETER_DICT[policy_type]['beta_A']
+  beta_B = HYPER_PARAMETER_DICT[policy_type]['beta_B']
+  beta_output = HYPER_PARAMETER_DICT[policy_type]['beta_output']
+  num_steps = HYPER_PARAMETER_DICT[policy_type]['num_steps']
 
   graph = tf.Graph()
   with graph.as_default():
