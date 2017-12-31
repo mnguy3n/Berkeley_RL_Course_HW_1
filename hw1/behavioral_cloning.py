@@ -22,7 +22,8 @@ def get_initial_data(env, policy, max_steps, args):
   observations = []
   actions = []
   for i in range(args.num_rollouts):
-    print('iter', i)
+    if args.print_debug:
+      print('iter', i)
     obs = env.reset()
     done = False
     totalr = 0.
@@ -36,7 +37,7 @@ def get_initial_data(env, policy, max_steps, args):
       steps += 1
       if args.render:
         env.render()
-      if steps % 100 == 0:
+      if args.print_debug and steps % 100 == 0:
         print("%i/%i"%(steps, max_steps))
       if steps >= max_steps:
         break
@@ -53,26 +54,27 @@ def main():
   parser.add_argument("--max_timesteps", type=int)
   parser.add_argument('--num_rollouts', type=int, default=20,
                       help='Number of expert roll outs')
+  parser.add_argument('--print_debug', type=bool, default=False)
   args = parser.parse_args()
 
-  print('loading expert policy')
+  print('Loading expert policy...')
   module_name = args.expert_policy_file.replace('/', '.')
   if module_name.endswith('.py'):
     module_name = module_name[:-3]
   policy_module = importlib.import_module(module_name)
-  print('loaded')
+  print('Loaded expert policy...')
 
   env, policy = policy_module.get_env_and_policy()
   max_steps = args.max_timesteps or env.spec.timestep_limit
   expert_data = get_initial_data(env, policy, max_steps, args)
 
-  ## behavioral cloning ##
+  ## Behavioral cloning ##
   total_data_size = len(expert_data['observations'])
   training_size = int(total_data_size * 0.7)
   validation_size = int(total_data_size * 0.2)
   testing_size = int(total_data_size * 0.1)
 
-  # separating data
+  # Separating data
   training_x = expert_data['observations'][0:training_size]
   training_y = expert_data['actions'][0:training_size]
   validation_x = expert_data['observations'][training_size:training_size + validation_size]
@@ -80,13 +82,13 @@ def main():
   testing_x = expert_data['observations'][training_size + validation_size:]
   testing_y = expert_data['actions'][training_size + validation_size:]
 
-  print('training shapes:', training_x.shape, training_y.shape)
-  print('validation shapes:', validation_x.shape, validation_y.shape)
-  print('testing shapes:', testing_x.shape, testing_y.shape)
+  if args.print_debug:
+    print('training shapes:', training_x.shape, training_y.shape)
+    print('validation shapes:', validation_x.shape, validation_y.shape)
+    print('testing shapes:', testing_x.shape, testing_y.shape)
 
-  # Making the neural net ##
-	
-  # constants
+  # Making the neural net ##	
+  # Constants
   num_features = training_x.shape[1]
   num_labels = training_y.shape[1]
 
@@ -162,7 +164,7 @@ def main():
   with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
 
-    ### TRAINING ###
+    ### Training ###
     print("Starting training...")
     for step in range(num_steps):
       # Pick an offset within the training data, which has been randomized.
@@ -175,18 +177,18 @@ def main():
       # and the value is the numpy array to feed to it.
       feed_dict = {tf_train_dataset : batch_data, tf_train_labels : batch_labels}
       _, training_loss, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
-      if (step % 1000 == 0):
-        # TODO: add flag to turn on and off debugging prints
+      if (step % 1000 == 0 and args.print_debug):
         print("Minibatch loss at step %d: %f" % (step, training_loss))
         print("Minibatch accuracy: %.1f%%" % accuracy(predictions, batch_labels))
         print("Validation accuracy: %.1f%%" % accuracy(valid_prediction.eval(), validation_y))
-    #print("Test accuracy: %.1f%%" % accuracy(test_prediction.eval(), testing_y))
+    print("Test accuracy: %.1f%%" % accuracy(test_prediction.eval(), testing_y))
 
-    ### TESTING ###
-    print("Starting testing...")
+    ### Scoring ###
+    print("Starting scoring...")
     returns = []
     for i in range(args.num_rollouts):
-      print('iter', i)
+      if args.print_debug:
+        print('iter', i)
       obs = env.reset()
       done = False
       totalr = 0.
@@ -198,7 +200,7 @@ def main():
         steps += 1
         if args.render:
           env.render()
-        if steps % 100 == 0:
+        if args.print_debug and steps % 100 == 0:
           print("%i/%i"%(steps, max_steps))
         if steps >= max_steps:
           break
